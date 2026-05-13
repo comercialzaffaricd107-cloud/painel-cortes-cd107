@@ -409,7 +409,7 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>#</th><th>Status</th><th>Produto</th><th>Descrição</th><th>Endereço</th><th>Reinc.</th><th>Estoque</th><th>Corte hora</th><th>Volume dia</th><th>Cobertura</th></tr>
+              <tr><th>#</th><th>Status</th><th>Produto</th><th>Descrição</th><th>Endereço</th><th>Reinc.</th><th>Estoque</th><th>Corte hora</th><th>Volume dia</th></tr>
             </thead>
             <tbody id="tbodyCriticos"><tr><td colspan="9" class="empty">Importe os arquivos para visualizar o Top.</td></tr></tbody>
           </table>
@@ -995,12 +995,9 @@ function renderTable(rows){
   const rankClass=(i)=>i===0?'top1':i===1?'top2':i===2?'top3':'';
   const ordenar=document.getElementById('ordenarPor')?.value||'reincidencia';
   tbody.innerHTML=rows.map((x,i)=>{
-    const cobertura=x.corte>0?(x.estoque/x.corte).toFixed(1):'∞';
-    const cobClass=Number(cobertura)<=1?'danger':Number(cobertura)<=1.5?'warn':'ok';
     // destaque da coluna ordenada
     const hlVol=ordenar==='volume'?'font-weight:700;color:var(--accent)':'';
     const hlCorte=ordenar==='corte_unitario'?'font-weight:700;color:var(--accent)':'';
-    const hlCob=ordenar==='estoque_critico'?'font-weight:700':'';
     return `<tr>
       <td><span class="rank-num ${rankClass(i)}">${i+1}</span></td>
       <td><span class="tag ${x.riscoEstrutural?'danger':x.ataqueImediato?'warn':x.reincidenteDia?'info':x.calc.tagClass}">
@@ -1013,7 +1010,6 @@ function renderTable(rows){
       <td>${fmt(x.estoque)}</td>
       <td style="${hlCorte}">${fmt(x.corte)}</td>
       <td style="${hlVol}"><strong>${fmt(x.corteDia)}</strong></td>
-      <td><span class="tag ${cobClass}" style="${hlCob}">${cobertura}x</span></td>
     </tr>`;}).join('');
 }
 
