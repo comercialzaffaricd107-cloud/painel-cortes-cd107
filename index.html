@@ -156,6 +156,18 @@ code,pre,.mono{font-family:'DM Mono',monospace}
 .insight-item strong{display:block;font-size:13px;margin-bottom:3px}
 .insight-item span{font-size:12px;color:var(--muted);line-height:1.5}
 
+/* Autocomplete gerencial */
+.ac-wrap{position:relative;flex:1;min-width:200px}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:var(--shadow-lg);margin-top:3px;display:none}
+.ac-list.open{display:block}
+.ac-item{padding:9px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #edf2f7;display:flex;gap:10px;align-items:center}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover{background:var(--surface2)}
+.ac-item .ac-cod{font-family:'DM Mono',monospace;color:var(--accent);font-size:11px;flex-shrink:0}
+.ac-item .ac-desc{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ac-clear{cursor:pointer;padding:0 4px;color:var(--muted);font-size:14px;flex-shrink:0}
+.ac-clear:hover{color:var(--danger)}
+
 /* Table */
 .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
@@ -281,6 +293,43 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
     </div>
   </div>
 
+  <!-- FILTROS DE VOLUME E ORDENAÇÃO -->
+  <div class="card toolbar-periodo" id="filtrosVolume">
+    <div class="field" style="margin:0">
+      <label>📊 Ordenar por</label>
+      <select id="ordenarPor" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;outline:none;width:100%">
+        <option value="reincidencia">Reincidência (padrão)</option>
+        <option value="volume">Maior volume de corte</option>
+        <option value="corte_unitario">Maior corte unitário (hora)</option>
+        <option value="estoque_critico">Estoque mais crítico</option>
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label>📦 Volume mínimo</label>
+      <select id="volumeMin" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;outline:none;width:100%">
+        <option value="0">Sem mínimo</option>
+        <option value="10">≥ 10 unidades</option>
+        <option value="50">≥ 50 unidades</option>
+        <option value="100">≥ 100 unidades</option>
+        <option value="200">≥ 200 unidades</option>
+        <option value="500">≥ 500 unidades</option>
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label>🔢 Corte unitário mín.</label>
+      <select id="corteMin" style="padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;outline:none;width:100%">
+        <option value="0">Sem mínimo</option>
+        <option value="5">≥ 5</option>
+        <option value="10">≥ 10</option>
+        <option value="20">≥ 20</option>
+        <option value="50">≥ 50</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+      <span id="filtroVolumeStatus" style="font-size:12px;color:var(--muted)">Ordenação e volume ativos.</span>
+    </div>
+  </div>
+
   <!-- FILTRO DE PERÍODO -->
   <div class="card toolbar-periodo">
     <div class="field" style="margin:0">
@@ -360,7 +409,7 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>#</th><th>Status</th><th>Produto</th><th>Descrição</th><th>Endereço</th><th>Reinc.</th><th>Estoque</th><th>Corte</th><th>Corte dia</th></tr>
+              <tr><th>#</th><th>Status</th><th>Produto</th><th>Descrição</th><th>Endereço</th><th>Reinc.</th><th>Estoque</th><th>Corte hora</th><th>Volume dia</th><th>Cobertura</th></tr>
             </thead>
             <tbody id="tbodyCriticos"><tr><td colspan="9" class="empty">Importe os arquivos para visualizar o Top.</td></tr></tbody>
           </table>
@@ -425,14 +474,31 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
     </div>
 
     <div class="card section">
-      <div style="margin-bottom:12px">
-        <div class="section-title">Resumo diário de cortes e reincidência</div>
-        <div class="section-sub" style="margin-bottom:0" id="resumoSub">Visão consolidada por dia, em estilo gerencial.</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div>
+          <div class="section-title">Resumo diário de cortes e reincidência</div>
+          <div class="section-sub" style="margin-bottom:0" id="resumoSub">Visão consolidada por dia, em estilo gerencial.</div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
+          <div class="field" style="margin:0">
+            <label>🔍 Filtrar por item</label>
+            <div class="ac-wrap" style="min-width:240px">
+              <div style="display:flex;align-items:center;gap:4px">
+                <input type="text" id="buscaGerencial" placeholder="Código ou descrição..." autocomplete="off"
+                  style="flex:1;padding:9px 10px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;outline:none">
+                <span class="ac-clear" id="buscaGerencialClear" onclick="limparBuscaGerencial()" title="Limpar" style="display:none">✕</span>
+              </div>
+              <div class="ac-list" id="acListGerencial"></div>
+            </div>
+          </div>
+          <button class="btn ghost" style="padding:9px 12px;font-size:12px" onclick="limparBuscaGerencial()">✕ Limpar item</button>
+        </div>
       </div>
+      <div id="itemFiltradoInfo" style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:8px;background:var(--info-bg);border:1px solid #bfdbfe;font-size:12px;color:var(--info)"></div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Data</th><th>Gravidade</th><th>Itens cortados</th><th>Críticos</th><th>Ruptura</th><th>Reincidências</th><th>Críticos reincidentes</th><th>Top reincidente</th></tr></thead>
-          <tbody id="tbodyGerencial"><tr><td colspan="9" class="empty">Importe os arquivos para visualizar o resumo diário.</td></tr></tbody>
+          <tbody id="tbodyGerencial"><tr><td colspan="8" class="empty">Importe os arquivos para visualizar o resumo diário.</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -754,6 +820,9 @@ function getFilteredRows(){
   const minLevel=Number(nivelMinimo.value);
   const minReinc=Number(reincidenciaMin.value);
   const tipo=filtroTop10.value;
+  const ordenar=document.getElementById('ordenarPor')?.value||'reincidencia';
+  const volMin=Number(document.getElementById('volumeMin')?.value||0);
+  const corteMinVal=Number(document.getElementById('corteMin')?.value||0);
 
   if(q) rows=rows.filter(x=>`${x.codigo} ${x.descricao} ${x.endereco}`.toLowerCase().includes(q));
   if(minLevel>0) rows=rows.filter(x=>x.calc.nivel>=minLevel);
@@ -763,7 +832,38 @@ function getFilteredRows(){
   else if(tipo==='ruptura') rows=rows.filter(x=>x.calc.ruptura);
   else if(tipo==='reincidencia') rows=rows.filter(x=>x.reincidencia>=2);
 
-  rows.sort((a,b)=>b.reincidencia-a.reincidencia||b.corteDia-a.corteDia||b.corte-a.corte);
+  // Filtros de volume
+  if(volMin>0) rows=rows.filter(x=>x.corteDia>=volMin);
+  if(corteMinVal>0) rows=rows.filter(x=>x.corte>=corteMinVal);
+
+  // Ordenação
+  if(ordenar==='volume'){
+    rows.sort((a,b)=>b.corteDia-a.corteDia||b.corte-a.corte||b.reincidencia-a.reincidencia);
+  } else if(ordenar==='corte_unitario'){
+    rows.sort((a,b)=>b.corte-a.corte||b.corteDia-a.corteDia||b.reincidencia-a.reincidencia);
+  } else if(ordenar==='estoque_critico'){
+    // Menor cobertura = estoque mais próximo do corte
+    rows.sort((a,b)=>{
+      const cobA=a.corte>0?a.estoque/a.corte:999;
+      const cobB=b.corte>0?b.estoque/b.corte:999;
+      return cobA-cobB||b.corte-a.corte;
+    });
+  } else {
+    // padrão: reincidência
+    rows.sort((a,b)=>b.reincidencia-a.reincidencia||b.corteDia-a.corteDia||b.corte-a.corte);
+  }
+
+  // Atualizar status
+  const statusEl=document.getElementById('filtroVolumeStatus');
+  if(statusEl){
+    const parts=[];
+    const labels={reincidencia:'Reincidência',volume:'Maior volume',corte_unitario:'Corte unitário',estoque_critico:'Estoque crítico'};
+    parts.push(`Ordem: ${labels[ordenar]}`);
+    if(volMin>0) parts.push(`Volume ≥ ${fmt(volMin)}`);
+    if(corteMinVal>0) parts.push(`Corte ≥ ${corteMinVal}`);
+    statusEl.textContent=parts.join(' · ')+` · ${rows.slice(0,Number(topN.value)).length} itens`;
+  }
+
   return rows.slice(0,Number(topN.value));
 }
 
@@ -893,20 +993,28 @@ function renderTable(rows){
     return;
   }
   const rankClass=(i)=>i===0?'top1':i===1?'top2':i===2?'top3':'';
-  tbody.innerHTML=rows.map((x,i)=>`
-    <tr>
+  const ordenar=document.getElementById('ordenarPor')?.value||'reincidencia';
+  tbody.innerHTML=rows.map((x,i)=>{
+    const cobertura=x.corte>0?(x.estoque/x.corte).toFixed(1):'∞';
+    const cobClass=Number(cobertura)<=1?'danger':Number(cobertura)<=1.5?'warn':'ok';
+    // destaque da coluna ordenada
+    const hlVol=ordenar==='volume'?'font-weight:700;color:var(--accent)':'';
+    const hlCorte=ordenar==='corte_unitario'?'font-weight:700;color:var(--accent)':'';
+    const hlCob=ordenar==='estoque_critico'?'font-weight:700':'';
+    return `<tr>
       <td><span class="rank-num ${rankClass(i)}">${i+1}</span></td>
       <td><span class="tag ${x.riscoEstrutural?'danger':x.ataqueImediato?'warn':x.reincidenteDia?'info':x.calc.tagClass}">
         ${x.riscoEstrutural?'⚠️ Risco estrutural':x.ataqueImediato?'🚨 Ataque imediato':x.reincidenteDia?'♻️ Reincidência':x.calc.status}
       </span></td>
       <td class="mono" style="font-size:12px">${x.codigo}</td>
-      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${x.descricao||''}">${x.descricao||'—'}</td>
+      <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${x.descricao||''}">${x.descricao||'—'}</td>
       <td class="mono" style="font-size:12px">${x.endereco||'—'}</td>
       <td><strong>${x.reincidencia}h</strong></td>
       <td>${fmt(x.estoque)}</td>
-      <td>${fmt(x.corte)}</td>
-      <td><strong>${fmt(x.corteDia)}</strong></td>
-    </tr>`).join('');
+      <td style="${hlCorte}">${fmt(x.corte)}</td>
+      <td style="${hlVol}"><strong>${fmt(x.corteDia)}</strong></td>
+      <td><span class="tag ${cobClass}" style="${hlCob}">${cobertura}x</span></td>
+    </tr>`;}).join('');
 }
 
 // ── ABA GERENCIAL ─────────────────────────────────────────────────────────────
@@ -1132,6 +1240,87 @@ function getPeriodoFiltrado(){
   // iniDate/fimDate mantidos como strings para compatibilidade
   return{iniDate:iniStr||null,fimDate:fimStr||null,todosRows,rows};
 }
+// ── BUSCA POR ITEM NO GERENCIAL ──────────────────────────────────────────────
+function getBuscaGerencial(){ return (document.getElementById('buscaGerencial')?.value||'').trim().toLowerCase(); }
+
+window.limparBuscaGerencial=function(){
+  const el=document.getElementById('buscaGerencial');
+  if(el) el.value='';
+  const cl=document.getElementById('buscaGerencialClear');
+  if(cl) cl.style.display='none';
+  const ac=document.getElementById('acListGerencial');
+  if(ac) ac.classList.remove('open');
+  renderGerencial();
+};
+
+function buildAcGerencial(){
+  const input=document.getElementById('buscaGerencial');
+  const list=document.getElementById('acListGerencial');
+  const clr=document.getElementById('buscaGerencialClear');
+  if(!input||!list) return;
+
+  input.addEventListener('input',()=>{
+    const q=(input.value||'').toLowerCase().trim();
+    if(clr) clr.style.display=q?'inline':'none';
+    if(!q||q.length<2){ list.classList.remove('open'); renderGerencial(); return; }
+
+    // Produtos únicos do arquivo
+    const mapa=new Map();
+    cortesRows.forEach(r=>{
+      const cod=safe(r['SEQPRODUTO']);
+      const desc=safe(r['DESCCOMPLETA']).replace(/-$/,'').trim();
+      if(cod&&!mapa.has(cod)) mapa.set(cod,desc);
+    });
+    const matches=[...mapa.entries()]
+      .filter(([cod,desc])=>cod.toLowerCase().includes(q)||desc.toLowerCase().includes(q))
+      .slice(0,10);
+
+    if(!matches.length){ list.classList.remove('open'); renderGerencial(); return; }
+
+    list.innerHTML=matches.map(([cod,desc])=>
+      `<div class="ac-item" onclick="selecionarItemGerencial('${cod}','${desc.replace(/'/g,"\'").replace(/"/g,"&quot;")}')">
+        <span class="ac-cod">${cod}</span>
+        <span class="ac-desc">${desc||'—'}</span>
+      </div>`
+    ).join('');
+    list.classList.add('open');
+    renderGerencial();
+  });
+
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Escape') list.classList.remove('open');
+    if(e.key==='Enter'){ list.classList.remove('open'); renderGerencial(); }
+  });
+  document.addEventListener('click',e=>{
+    if(!input.contains(e.target)&&!list.contains(e.target)) list.classList.remove('open');
+  });
+}
+
+window.selecionarItemGerencial=function(cod,desc){
+  const input=document.getElementById('buscaGerencial');
+  const list=document.getElementById('acListGerencial');
+  const clr=document.getElementById('buscaGerencialClear');
+  if(input) input.value=cod;
+  if(list) list.classList.remove('open');
+  if(clr) clr.style.display='inline';
+  renderGerencial();
+};
+
+// Filtra cortesRows pelo item e retorna quais datas têm ocorrência
+function getDatasComItem(q){
+  if(!q) return null; // null = sem filtro
+  const datasSet=new Set();
+  cortesRows.forEach(r=>{
+    const cod=safe(r['SEQPRODUTO']).toLowerCase();
+    const desc=safe(r['DESCCOMPLETA']).toLowerCase();
+    if(cod.includes(q)||desc.includes(q)){
+      const d=normalizeDateToBR(parseDateBRFromDateTime(r['DTAHORAMOVTO']));
+      if(d) datasSet.add(d);
+    }
+  });
+  return datasSet;
+}
+
 window.limparPeriodo=function(){
   const ini=document.getElementById('periodoInicio');
   const fim=document.getElementById('periodoFim');
@@ -1187,15 +1376,35 @@ function renderGerencial(){
     return;
   }
 
+  // Filtro por item
+  const qItem=getBuscaGerencial();
+  const datasComItem=getDatasComItem(qItem);
+  let rowsFiltradas=datasComItem?rows.filter(r=>datasComItem.has(r.data)):rows;
+
+  // Painel informativo do item filtrado
+  const infoEl=document.getElementById('itemFiltradoInfo');
+  if(infoEl){
+    if(qItem&&datasComItem){
+      infoEl.style.display='block';
+      infoEl.innerHTML=`🔍 Filtro ativo: <strong>"${qItem}"</strong> · aparece em <strong>${datasComItem.size}</strong> dia(s) · exibindo ${rowsFiltradas.length} de ${rows.length} dias do período`;
+    } else {
+      infoEl.style.display='none';
+    }
+  }
+
   const dataAtual=dataBaseSelect.value;
-  tbody.innerHTML=rows.map(r=>`
-    <tr style="background:${r.gravidade.cor}0d;border-left:4px solid ${r.gravidade.cor}${r.data===dataAtual?';font-weight:700':''}">
-      <td><strong>${r.data}</strong></td>
-      <td><span class="tag ${r.gravidade.classe}">${r.gravidade.nivel}</span></td>
-      <td>${fmt(r.itens)}</td><td>${fmt(r.criticos)}</td><td>${fmt(r.ruptura)}</td>
-      <td>${fmt(r.reinc)}</td><td>${fmt(r.critReinc)}</td>
-      <td style="font-size:12px;color:var(--muted)">${r.topReinc?`${r.topReinc.codigo} (${r.topReinc.reincidencia}h)`:'—'}</td>
-    </tr>`).join('');
+  if(!rowsFiltradas.length){
+    tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhum dia encontrado${qItem?` com o item "${qItem}"`:''} no período selecionado.</td></tr>`;
+  } else {
+    tbody.innerHTML=rowsFiltradas.map(r=>`
+      <tr style="background:${r.gravidade.cor}0d;border-left:4px solid ${r.gravidade.cor}${r.data===dataAtual?';font-weight:700':''}">
+        <td><strong>${r.data}</strong></td>
+        <td><span class="tag ${r.gravidade.classe}">${r.gravidade.nivel}</span></td>
+        <td>${fmt(r.itens)}</td><td>${fmt(r.criticos)}</td><td>${fmt(r.ruptura)}</td>
+        <td>${fmt(r.reinc)}</td><td>${fmt(r.critReinc)}</td>
+        <td style="font-size:12px;color:var(--muted)">${r.topReinc?`${r.topReinc.codigo} (${r.topReinc.reincidencia}h)`:'—'}</td>
+      </tr>`).join('');
+  }
 
   if(tbodyRanking){
     const podioIcons=['🥇','🥈','🥉','4º','5º'];
@@ -1853,6 +2062,7 @@ fileRuas.addEventListener('change',e=>{
 tabBtnOperacional.addEventListener('click',()=>setActiveTab('operacional'));
 tabBtnGerencial.addEventListener('click',()=>setActiveTab('gerencial'));
 [dataBaseSelect,horaSelect,topN,nivelMinimo,filtroTop10,reincidenciaMin].forEach(el=>el.addEventListener('change',renderAll));
+['ordenarPor','volumeMin','corteMin'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',renderAll);});
 busca.addEventListener('input',renderAll);
 $('btnResumo').addEventListener('click',gerarTextoWhatsApp);
 $('btnImagem').addEventListener('click',gerarImagemResumo);
@@ -1887,6 +2097,7 @@ function setActiveTab(tab){
     });
   }
 
+  buildAcGerencial();
   renderAll();
 })();
 </script>
