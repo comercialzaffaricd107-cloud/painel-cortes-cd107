@@ -2017,7 +2017,7 @@ function renderItens(){
     </tr>`).join('');
 }
 
-function exportarExcel(){
+window.exportarExcel=function exportarExcel(){
   const rows=getItensFiltrados();
   if(!rows.length) return alert('Nenhum item para exportar.');
 
@@ -2075,11 +2075,22 @@ function exportarExcel(){
   ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
   XLSX.utils.book_append_sheet(wb,'Resumo por Produto',ws2);
 
-  // Nome do arquivo
-  const nomeFiltro=($('itensBusca')||{}).value||'';
+  // Download via Blob — funciona em file:// e https://
   const nomeArq=`cortes_${de.replaceAll('/','')}_${ate.replaceAll('/','')}_CD107.xlsx`;
-  XLSX.writeFile(wb,nomeArq);
-}
+  try {
+    XLSX.writeFile(wb, nomeArq);
+  } catch(e) {
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArq;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  }
+};
 
 window.limparFiltrosItens=function(){
   ['itensPeriodoIni','itensPeriodoFim','itensBusca'].forEach(id=>{const el=$(id);if(el)el.value='';});
