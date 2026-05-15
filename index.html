@@ -200,7 +200,6 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
 @media(max-width:900px){.toolbar{grid-template-columns:repeat(4,1fr)}.toolbar-periodo{grid-template-columns:1fr 1fr}.stats-row{grid-template-columns:repeat(2,1fr)}.hour-grid{grid-template-columns:repeat(4,1fr)}.hero{grid-template-columns:1fr}}
 @media(max-width:600px){.toolbar{grid-template-columns:repeat(2,1fr)}.stats-row{grid-template-columns:1fr 1fr}.hour-grid{grid-template-columns:repeat(3,1fr)}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -2019,79 +2018,84 @@ function renderItens(){
 
 window.exportarExcel=function exportarExcel(){
   const rows=getItensFiltrados();
-  if(!rows.length) return alert('Nenhum item para exportar.');
+  if(!rows.length){ alert('Nenhum item para exportar. Verifique se os arquivos foram carregados.'); return; }
 
   const iniEl=$('itensPeriodoIni'), fimEl=$('itensPeriodoFim');
-  const de=iniEl&&iniEl.value?iniEl.value.split('-').reverse().join('/'):'início';
+  const de=iniEl&&iniEl.value?iniEl.value.split('-').reverse().join('/'):'inicio';
   const ate=fimEl&&fimEl.value?fimEl.value.split('-').reverse().join('/'):'hoje';
+  const nomeArq='cortes_CD107_'+de.replaceAll('/','')+'_'+ate.replaceAll('//','')+'.xlsx';
 
-  // Dados para planilha
-  const data=[
-    ['RELATÓRIO DE CORTES — CD 107'],
-    [`Período: ${de} → ${ate}   |   Gerado em: ${new Date().toLocaleString('pt-BR')}`],
-    [],
-    ['#','Data','Hora','Status','Código','Descrição','Endereço','Operador','Usuário','Reincidência (h)','Estoque','Corte hora','Volume dia'],
-    ...rows.map((r,i)=>[
-      i+1, r.data, r.hora, r.status, r.codigo,
-      r.descricao||'', r.endereco||'',
-      r.nome||'', r.usuario||'',
-      r.reinc, r.estoque, r.corte, r.corteDia
-    ])
-  ];
+  function gerarXLSX(){
+    try{
+      const wb=XLSX.utils.book_new();
 
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet(data);
+      // Aba 1 — todos os itens
+      const cabecalho=['#','Data','Hora','Status','Codigo','Descricao','Endereco','Operador','Usuario','Reincidencia_h','Estoque','Corte_hora','Volume_dia'];
+      const linhas=rows.map((r,i)=>[i+1,r.data,r.hora,r.status,r.codigo,r.descricao||'',r.endereco||'',r.nome||'',r.usuario||'',r.reinc,r.estoque,r.corte,r.corteDia]);
+      const ws=XLSX.utils.aoa_to_sheet([cabecalho,...linhas]);
+      ws['!cols']=[{wch:5},{wch:12},{wch:7},{wch:10},{wch:12},{wch:38},{wch:14},{wch:28},{wch:12},{wch:14},{wch:10},{wch:11},{wch:11}];
+      XLSX.utils.book_append_sheet(wb,'Itens Cortados',ws);
 
-  // Larguras das colunas
-  ws['!cols']=[
-    {wch:5},{wch:12},{wch:7},{wch:10},{wch:12},
-    {wch:35},{wch:14},{wch:28},{wch:10},
-    {wch:14},{wch:10},{wch:11},{wch:11}
-  ];
+      // Aba 2 — resumo por produto
+      const vm={};
+      rows.forEach(r=>{
+        if(!vm[r.codigo]) vm[r.codigo]={cod:r.codigo,desc:r.descricao||'',vol:0,ocorr:0,reinc:0};
+        vm[r.codigo].vol+=r.corte; vm[r.codigo].ocorr++;
+        if(r.reinc>vm[r.codigo].reinc) vm[r.codigo].reinc=r.reinc;
+      });
+      const res=Object.values(vm).sort((a,b)=>b.vol-a.vol);
+      const ws2=XLSX.utils.aoa_to_sheet([
+        ['Codigo','Descricao','Volume_total','Ocorrencias','Max_reincidencia_h'],
+        ...res.map(r=>[r.cod,r.desc,r.vol,r.ocorr,r.reinc])
+      ]);
+      ws2['!cols']=[{wch:12},{wch:38},{wch:14},{wch:13},{wch:20}];
+      XLSX.utils.book_append_sheet(wb,'Resumo por Produto',ws2);
 
-  // Mesclar cabeçalho
-  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}}];
+      // Download
+      const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      const blob=new Blob([wbout],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=nomeArq;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},2000);
+    } catch(err){
+      console.error('Erro XLSX:',err);
+      exportarCSV(rows, nomeArq.replace('.xlsx','.csv'));
+    }
+  }
 
-  XLSX.utils.book_append_sheet(wb,'Itens Cortados',ws);
-
-  // Aba de resumo por produto
-  const volMapa={};
-  rows.forEach(r=>{
-    if(!volMapa[r.codigo]) volMapa[r.codigo]={codigo:r.codigo,descricao:r.descricao,totalVolume:0,ocorrencias:0,reinc:r.reinc};
-    volMapa[r.codigo].totalVolume+=r.corte;
-    volMapa[r.codigo].ocorrencias++;
-    if(r.reinc>volMapa[r.codigo].reinc) volMapa[r.codigo].reinc=r.reinc;
-  });
-  const resumo=Object.values(volMapa).sort((a,b)=>b.totalVolume-a.totalVolume);
-  const dataResumo=[
-    ['RESUMO POR PRODUTO'],
-    [`Período: ${de} → ${ate}`],
-    [],
-    ['Código','Descrição','Volume total','Ocorrências','Máx. reincidência (h)'],
-    ...resumo.map(r=>[r.codigo,r.descricao||'',r.totalVolume,r.ocorrencias,r.reinc])
-  ];
-  const ws2=XLSX.utils.aoa_to_sheet(dataResumo);
-  ws2['!cols']=[{wch:12},{wch:35},{wch:14},{wch:13},{wch:18}];
-  ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
-  XLSX.utils.book_append_sheet(wb,'Resumo por Produto',ws2);
-
-  // Download via Blob — funciona em file:// e https://
-  const nomeArq=`cortes_${de.replaceAll('/','')}_${ate.replaceAll('/','')}_CD107.xlsx`;
-  try {
-    XLSX.writeFile(wb, nomeArq);
-  } catch(e) {
-    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-    const blob = new Blob([wbout], {type:'application/octet-stream'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeArq;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  // Carregar SheetJS dinamicamente se não estiver disponível
+  if(typeof XLSX!=='undefined'){
+    gerarXLSX();
+  } else {
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=gerarXLSX;
+    s.onerror=()=>exportarCSV(rows, nomeArq.replace('.xlsx','.csv'));
+    document.head.appendChild(s);
   }
 };
 
+// Fallback: exportar como CSV se XLSX falhar
+function exportarCSV(rows, nome){
+  const sep=";";
+  const nl="\n";
+  const bom="\uFEFF";
+  function esc(v){ return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'; }
+  const cab=["#","Data","Hora","Status","Codigo","Descricao","Endereco","Operador","Usuario","Reincidencia_h","Estoque","Corte_hora","Volume_dia"];
+  const linhas=rows.map(function(r,i){
+    return [i+1,r.data,r.hora,r.status,r.codigo,r.descricao||"",r.endereco||"",r.nome||"",r.usuario||"",r.reinc,r.estoque,r.corte,r.corteDia];
+  });
+  const csv=bom+[cab].concat(linhas).map(function(l){return l.map(esc).join(sep);}).join(nl);
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=nome||"cortes_CD107.csv";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);a.remove();},2000);
+}
 window.limparFiltrosItens=function(){
   ['itensPeriodoIni','itensPeriodoFim','itensBusca'].forEach(id=>{const el=$(id);if(el)el.value='';});
   const st=$('itensStatus'); if(st) st.value='';
