@@ -663,14 +663,16 @@ function processData(){
     const key=data+'|'+hora+'|'+codigo;
     const endereco=safe(r['ENDERECO'])||ruasMap.get(codigo)||'';
     const desc=safe(r['DESCCOMPLETA']).replace(/-$/,'').trim();
+    const ultRec=safe(r['DATA_ULT_RECEBIMENTO'])||'';
     if(!byDateHourProduct[key]){
-      byDateHourProduct[key]={data,hora,codigo,descricao:desc,endereco,estoque:0,estoqueTotal:0,corte:0};
+      byDateHourProduct[key]={data,hora,codigo,descricao:desc,endereco,estoque:0,estoqueTotal:0,corte:0,ultRecebimento:ultRec};
     }
     byDateHourProduct[key].descricao=byDateHourProduct[key].descricao||desc;
     byDateHourProduct[key].endereco=byDateHourProduct[key].endereco||endereco;
     byDateHourProduct[key].estoque=num(r['SALDOENDERECO']);
     byDateHourProduct[key].estoqueTotal=num(r['SALDO_ATUAL']);
     byDateHourProduct[key].corte+=getMovimentado(r);
+    if(!byDateHourProduct[key].ultRecebimento&&ultRec) byDateHourProduct[key].ultRecebimento=ultRec;
   });
 
   datasetByDateHour={};
@@ -1944,13 +1946,15 @@ function getItensFiltrados(){
         endereco:safe(r['ENDERECO'])||ruasMap.get(cod)||'',
         nome:safe(r['NOME'])||'',
         usuario:safe(r['USUMOVTO'])||'',
-        estoque:0, corte:0
+        estoque:0, corte:0,
+        ultRecebimento:safe(r['DATA_ULT_RECEBIMENTO'])||''
       };
     }
     byKey[key].estoque=num(r['SALDOENDERECO']);
     byKey[key].corte+=Math.round(num(r['MOVIMENTADO'])||num(r['QTDMOVTO']));
     if(!byKey[key].nome) byKey[key].nome=safe(r['NOME'])||'';
     if(!byKey[key].usuario) byKey[key].usuario=safe(r['USUMOVTO'])||'';
+    if(!byKey[key].ultRecebimento) byKey[key].ultRecebimento=safe(r['DATA_ULT_RECEBIMENTO'])||'';
   });
 
   // Calcular volume dia e reincidência por código
