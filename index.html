@@ -368,7 +368,7 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>#</th><th>Status</th><th>Produto</th><th>Descrição</th><th>Endereço</th><th>Reinc.</th><th>Estoque</th><th>Corte</th><th>Corte dia</th></tr>
+              <tr><th>#</th><th>Status</th><th>Produto</th><th>Descrição</th><th>Endereço</th><th>Reinc.</th><th>Estoque</th><th>Corte hora</th><th>Volume dia</th><th>Últ. recebimento</th></tr>
             </thead>
             <tbody id="tbodyCriticos"><tr><td colspan="9" class="empty">Importe os arquivos para visualizar o Top.</td></tr></tbody>
           </table>
@@ -989,6 +989,7 @@ function renderTable(rows){
       <td>${fmt(x.estoque)}</td>
       <td>${fmt(x.corte)}</td>
       <td><strong>${fmt(x.corteDia)}</strong></td>
+      <td style="font-size:11px;color:var(--muted);white-space:nowrap">${x.ultRecebimento||'—'}</td>
     </tr>`).join('');
 }
 
