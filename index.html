@@ -508,6 +508,7 @@ canvas.share-preview{width:100%;max-width:360px;border-radius:16px;border:1px so
               <th>Estoque</th>
               <th>Corte hora</th>
               <th>Volume dia</th>
+              <th>Últ. recebimento</th>
             </tr>
           </thead>
           <tbody id="tbodyItens">
@@ -2013,6 +2014,7 @@ function renderItens(){
       <td>${fmt(r.estoque)}</td>
       <td>${fmt(r.corte)}</td>
       <td><strong>${fmt(r.corteDia)}</strong></td>
+      <td style="font-size:11px;color:var(--muted);white-space:nowrap">${r.ultRecebimento||'—'}</td>
     </tr>`).join('');
 }
 
@@ -2084,9 +2086,9 @@ function exportarCSV(rows, nome){
   const nl="\n";
   const bom="\uFEFF";
   function esc(v){ return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'; }
-  const cab=["#","Data","Hora","Status","Codigo","Descricao","Endereco","Operador","Usuario","Reincidencia_h","Estoque","Corte_hora","Volume_dia"];
+  const cab=["#","Data","Hora","Status","Codigo","Descricao","Endereco","Operador","Usuario","Reincidencia_h","Estoque","Corte_hora","Volume_dia","Ult_Recebimento"];
   const linhas=rows.map(function(r,i){
-    return [i+1,r.data,r.hora,r.status,r.codigo,r.descricao||"",r.endereco||"",r.nome||"",r.usuario||"",r.reinc,r.estoque,r.corte,r.corteDia];
+    return [i+1,r.data,r.hora,r.status,r.codigo,r.descricao||"",r.endereco||"",r.nome||"",r.usuario||"",r.reinc,r.estoque,r.corte,r.corteDia,r.ultRecebimento||""];
   });
   const csv=bom+[cab].concat(linhas).map(function(l){return l.map(esc).join(sep);}).join(nl);
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
